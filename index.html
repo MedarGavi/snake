@@ -34,6 +34,23 @@
 <h2>Snake Game</h2>
 <p>Score: <span id="score">0</span> | High Score: <span id="highScore">0</span></p>
 <button id="startButton" onclick="startGame()">Start Game</button>
+<p>
+  Select Player:
+  <select id="playerSelect">
+    <option value="Player 1">Player 1</option>
+    <option value="Player 2">Player 2</option>
+    <option value="Player 3">Player 3</option>
+  </select>
+</p>
+<p>
+  Edit Username:
+  <input type="text" id="usernameInput" placeholder="Enter new name">
+  <button onclick="editUsername()">Update Name</button>
+</p>
+
+<button onclick="showWinner()">Show Winner</button>
+<p id="winnerDisplay"></p>
+
 <canvas id="gameCanvas" width="400" height="400"></canvas>
 
 <script>
@@ -45,72 +62,62 @@
   let direction = 'right';
   let food = { x: 200, y: 200 };
   let score = 0;
-  let highScore = 0;
   let gameRunning = false;
   let gameInterval;
 
+  const players = {
+    "Player 1": 0,
+    "Player 2": 0,
+    "Player 3": 0
+  };
+
+  function getCurrentPlayer() {
+    return document.getElementById('playerSelect').value;
+  }
+
   function drawSnake() {
-    ctx.fillStyle = '#1abc9c'; // Snake color
+    ctx.fillStyle = '#1abc9c';
     snake.forEach(segment => ctx.fillRect(segment.x, segment.y, snakeSize, snakeSize));
-    // Draw a face on the snake's head
     const head = snake[0];
-    const eyeSize = 5;
-    const eyeOffsetX = 5;
-    const eyeOffsetY = 5;
-    ctx.fillStyle = '#ecf0f1'; // Eye color
-    ctx.fillRect(head.x + eyeOffsetX, head.y + eyeOffsetY, eyeSize, eyeSize);
+    ctx.fillStyle = '#ecf0f1';
+    ctx.fillRect(head.x + 5, head.y + 5, 5, 5);
   }
 
   function drawFood() {
-    ctx.fillStyle = '#e74c3c'; // Food color
+    ctx.fillStyle = '#e74c3c';
     ctx.fillRect(food.x, food.y, snakeSize, snakeSize);
   }
 
   function update() {
-    if (!gameRunning) {
-      return;
-    }
+    if (!gameRunning) return;
 
     const head = { ...snake[0] };
 
     switch (direction) {
-      case 'up':
-        head.y -= snakeSize;
-        break;
-      case 'down':
-        head.y += snakeSize;
-        break;
-      case 'left':
-        head.x -= snakeSize;
-        break;
-      case 'right':
-        head.x += snakeSize;
-        break;
+      case 'up': head.y -= snakeSize; break;
+      case 'down': head.y += snakeSize; break;
+      case 'left': head.x -= snakeSize; break;
+      case 'right': head.x += snakeSize; break;
     }
 
     snake.unshift(head);
 
-    // Check if snake ate the food
     if (head.x === food.x && head.y === food.y) {
       score++;
-      if (score > highScore) {
-        highScore = score;
-        document.getElementById('highScore').textContent = highScore;
-      }
       document.getElementById('score').textContent = score;
       generateFood();
     } else {
       snake.pop();
     }
 
-    // Check if snake collided with walls or itself
-    if (
-      head.x < 0 || head.x >= canvas.width ||
-      head.y < 0 || head.y >= canvas.height ||
-      checkCollision()
-    ) {
-      alert('Game Over! Your Score: ' + score);
+    if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height || checkCollision()) {
+      const currentPlayer = getCurrentPlayer();
+      if (score > players[currentPlayer]) {
+        players[currentPlayer] = score;
+      }
+      alert('Game Over! ' + currentPlayer + ' Score: ' + score);
       resetGame();
+      updateHighScoreDisplay();
     }
 
     draw();
@@ -139,49 +146,85 @@
     direction = 'right';
     score = 0;
     document.getElementById('score').textContent = score;
-    generateFood();
-    document.getElementById('startButton').textContent = 'Start Game';
     clearInterval(gameInterval);
+    document.getElementById('startButton').textContent = 'Start Game';
   }
 
   function startGame() {
     if (!gameRunning) {
       gameRunning = true;
-      document.getElementById('startButton').textContent = 'Game Running';
       generateFood();
-      gameInterval = setInterval(update, 100); // Game loop
+      gameInterval = setInterval(update, 100);
+      document.getElementById('startButton').textContent = 'Game Running';
     }
   }
 
-  document.addEventListener('keydown', (event) => {
-    if (!gameRunning) {
+  function updateHighScoreDisplay() {
+    const currentPlayer = getCurrentPlayer();
+    document.getElementById('highScore').textContent = players[currentPlayer];
+  }
+
+  function showWinner() {
+  let winner = '';
+  let maxScore = -1;
+
+  for (const player in players) {
+    if (players[player] > maxScore) {
+      maxScore = players[player];
+      winner = player;
+    }
+  }
+
+  if (maxScore > 0) {
+    alert('🏆 Winner: ' + winner + ' with score: ' + maxScore);
+  } else {
+    alert('No scores yet. Play the game first!');
+  }
+}
+
+
+  function editUsername() {
+    const newName = document.getElementById('usernameInput').value.trim();
+    const currentPlayer = getCurrentPlayer();
+
+    if (newName === '') {
+      alert('Please enter a valid name.');
       return;
     }
 
+    if (players.hasOwnProperty(newName)) {
+      alert('Username already exists. Choose a different name.');
+      return;
+    }
+
+    // Save score and rename player
+    players[newName] = players[currentPlayer];
+    delete players[currentPlayer];
+
+    // Update dropdown
+    const select = document.getElementById('playerSelect');
+    const currentOption = select.querySelector(`option[value='${currentPlayer}']`);
+    currentOption.value = newName;
+    currentOption.textContent = newName;
+
+    select.value = newName;
+    updateHighScoreDisplay();
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (!gameRunning) return;
+
     switch (event.key) {
-      case 'ArrowUp':
-        if (direction !== 'down') {
-          direction = 'up';
-        }
-        break;
-      case 'ArrowDown':
-        if (direction !== 'up') {
-          direction = 'down';
-        }
-        break;
-      case 'ArrowLeft':
-        if (direction !== 'right') {
-          direction = 'left';
-        }
-        break;
-      case 'ArrowRight':
-        if (direction !== 'left') {
-          direction = 'right';
-        }
-        break;
+      case 'ArrowUp': if (direction !== 'down') direction = 'up'; break;
+      case 'ArrowDown': if (direction !== 'up') direction = 'down'; break;
+      case 'ArrowLeft': if (direction !== 'right') direction = 'left'; break;
+      case 'ArrowRight': if (direction !== 'left') direction = 'right'; break;
     }
   });
+
+  document.getElementById('playerSelect').addEventListener('change', updateHighScoreDisplay);
 </script>
+
 
 </body>
 </html>
